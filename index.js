@@ -39,28 +39,24 @@ Player.prototype.damage = function(damage)
         this.live = false;
       }
 };
+Player.prototype.toJSON = function()
+{
+  return {id: this.getId()};
+};
 
 /**
   Outcoming Notifications
 */
 var notification = {
 
-  actionable: {
-    // Active Actions
-    Attack: 'ActionableNotification.Attack',
-    Move:   'ActionableNotification.Move',
-
-    // Passive Actions
-    Damage: 'ActionableNotification.Damage',
-
-    // Livecycle
-    Die:    'ActionableNotification.Die',
-    Spawn:  'ActionableNotification.Spawn'
+  localPlayer: {
+    move: 'TWLocalPlayerNotification.Move'
   },
 
-  user: {
-    NotFound: 'UserNotification.NotFound'
-
+  remotePlayer: {
+    enter: 'TWRemotePlayerNotification.Enter',
+    leave: 'TWRemotePlayerNotification.Leave',
+    move: 'TWRemotePlayerNotification.Move'
   }
 }
 
@@ -70,7 +66,21 @@ io.listen(3000);
 
 function onIOConnection(socket)
 {
-  console.log('onSocketConnection', socket.id);
+  console.log('onIOConnection', socket.id);
+
+  var p = new Player(socket.id);
+  players[p.getId];
+
+  // Tells everyody that the player spawned
+  socket.broadcast.emit(notification.remotePlayer.enter, p.toJSON());
+
+  setupNotifications(socket);
+}
+
+
+function setupNotifications(socket)
+{
+  console.log('setupIncomingNotifications');
 
   socket.on('disconnect', function()
   {
@@ -82,47 +92,10 @@ function onIOConnection(socket)
     onSocketError(socket);
   });
 
-  var p = new Player(socket.id);
-  players[p.getId];
-
-  // Tells everyody that the player spawned
-  onActionableSpawned(socket, {id:p.getId()});
-
-  /**
-    Income Actions (talvez serão removidos)
-  */
-  // Verificar da autorização socket/player ser feita ou validada pelo servidor de incomes
-//   socket.on(
-//       events.SessionNotification.DidAuthorizedPlayer,
-//       function(data)
-//       {
-//         console.log(events.SessionNotification.DidAuthorizedPlayer, data);
-//
-//         sockets[data.playerId] = socket;
-//       }
-//   );
-//
-//   socket.on(
-//     events.PlayerMoveNotification.DidUpdateToLocation,
-//     function(data)
-//     {
-//       console.log(events.PlayerMoveNotification.DidUpdateToLocation, data);
-//     }
-//   );
-//
-  setupIncomingNotifications(socket);
-}
-
-
-function setupIncomingNotifications(socket)
-{
-  console.log('setupIncomingNotifications');
-
-  // Actionable Move notification
-  socket.on(notification.actionable.Move, function(actionableData)
+  socket.on(notification.localPlayer.move, function(localPlayerMoveData)
   {
-      actionableData.id = socket.id;
-      onActionableMove(socket, actionableData);
+      localPlayerMoveData.id = socket.id;
+      onLocalPlayerMove(socket, localPlayerMoveData);
   });
 }
 
@@ -138,20 +111,10 @@ function onSocketError(socket)
   console.log('onSocketError', socket.id);
 }
 
-function onActionableMove(socket, actionable) {
-  console.log('onActionableMove', actionable);
+function onLocalPlayerMove(socket, localPlayerMoveData)
+{
+  console.log('onLocalPlayerMove', localPlayerMoveData);
 
   // Broadcast player position to all players
-  io.emit(notification.actionable.Move, actionable);
-}
-
-
-/**
-  Notify all sockets that something spawned
-*/
-function onActionableSpawned(socket, actionable)
-{
-  console.log('onActionableSpawned', actionable);
-
-  io.emit(notification.actionable.Spawn, actionable);
+  socket.broadcast.emit(notification.remotePlayer.move, localPlayerMoveData);
 }
