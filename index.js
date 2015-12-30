@@ -50,13 +50,15 @@ Player.prototype.toJSON = function()
 var notification = {
 
   localPlayer: {
-    move: 'TWLocalPlayerNotification.Move'
+    move: 'TWLocalPlayerNotification.Move',
+    attack: 'TWLocalPlayerNotification.Attack'
   },
 
   remotePlayer: {
     enter: 'TWRemotePlayerNotification.Enter',
     leave: 'TWRemotePlayerNotification.Leave',
-    move: 'TWRemotePlayerNotification.Move'
+    move: 'TWRemotePlayerNotification.Move',
+    damage: 'TWRemotePlayerNotification.Damage'
   }
 }
 
@@ -97,6 +99,11 @@ function setupNotifications(socket)
       localPlayerMoveData.id = socket.id;
       onLocalPlayerMove(socket, localPlayerMoveData);
   });
+
+  socket.on(notification.localPlayer.attack, function(localPlayerAttackData)
+  {
+      onLocalPlayerAttack(socket, localPlayerAttackData);
+  });
 }
 
 
@@ -104,6 +111,8 @@ function setupNotifications(socket)
 function onSocketDisconnect(socket)
 {
   console.log('onSocketDisconnect', socket.id);
+
+  io.emit(notification.remotePlayer.leave, {id: socket.id});
 }
 
 function onSocketError(socket)
@@ -117,4 +126,15 @@ function onLocalPlayerMove(socket, localPlayerMoveData)
 
   // Broadcast player position to all players
   socket.broadcast.emit(notification.remotePlayer.move, localPlayerMoveData);
+}
+
+function onLocalPlayerAttack(socket, localPlayerAttackData)
+{
+  console.log('onLocalPlayerAttack', localPlayerAttackData);
+
+  var playerDamageData = {
+    id: localPlayerAttackData.id
+  }
+  // Broadcast player position to all players
+  io.emit(notification.remotePlayer.damage, playerDamageData);
 }
